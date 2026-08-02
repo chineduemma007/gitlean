@@ -154,16 +154,52 @@ function App() {
   // Helper to format markdown review simply
   const formatMarkdown = (text) => {
     if (!text) return "";
-    return text
+    let html = text
       .replace(/### (.*)/g, '<h3>$1</h3>')
       .replace(/## (.*)/g, '<h2>$1</h2>')
       .replace(/# (.*)/g, '<h1>$1</h1>')
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/```python([\s\S]*?)```/g, '<pre class="code-block">$1</pre>')
-      .replace(/```diff([\s\S]*?)```/g, '<pre class="code-block diff">$1</pre>')
-      .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-      .replace(/\n/g, '<br/>');
+      .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+
+    // Highlighting parser for code blocks
+    html = html.replace(/```(python|diff|javascript|yaml)?([\s\S]*?)```/g, (match, lang, code) => {
+      let highlighted = code.trim();
+      if (lang === 'python') {
+        highlighted = highlighted
+          // Escape HTML characters in raw code first to prevent injection issues
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+          // Highlight comments
+          .replace(/(#.*)/g, '<span class="code-comment">$1</span>')
+          // Highlight strings
+          .replace(/(".*?")/g, '<span class="code-string">$1</span>')
+          .replace(/('.*?')/g, '<span class="code-string">$1</span>')
+          // Highlight keywords
+          .replace(/\b(def|class|return|try|except|raise|import|from|assert|if|else|elif|in|for|while|as|pass)\b/g, '<span class="code-keyword">$1</span>')
+          // Highlight builtins
+          .replace(/\b(print|ValueError|Exception|len|str|int|float|dict|list|set|round)\b/g, '<span class="code-builtin">$1</span>')
+          // Highlight literals
+          .replace(/\b(None|True|False)\b/g, '<span class="code-literal">$1</span>');
+      } else if (lang === 'diff') {
+        highlighted = highlighted
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+          .split('\n')
+          .map(line => {
+            if (line.startsWith('+')) {
+              return `<span class="diff-addition">${line}</span>`;
+            } else if (line.startsWith('-')) {
+              return `<span class="diff-deletion">${line}</span>`;
+            }
+            return line;
+          })
+          .join('\n');
+      } else {
+        highlighted = highlighted.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      }
+      return `<pre class="code-block ${lang || ''}"><code>${highlighted}</code></pre>`;
+    });
+
+    return html.replace(/\n/g, '<br/>');
   };
 
   // Render SVG charts
@@ -351,7 +387,7 @@ function App() {
           {/* Navigation Tabs */}
           <nav className="glass-panel nav-panel">
             <button className={activeTab === 'reviewer' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('reviewer')}>
-              📋 Code Review Report
+              📋 Git Pull Review Summary
             </button>
             <button className={activeTab === 'visualizer' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('visualizer')}>
               🔍 Split-Screen Context Visualizer
@@ -364,16 +400,16 @@ function App() {
           {/* Tab 1: Code Reviewer */}
           {activeTab === 'reviewer' && (
             <div className="tab-content reviewer-tab">
-              <h2>📋 Pull Request Review Report</h2>
-              <p className="tab-subtitle">Generated review based on compressed file contexts</p>
+              <h2>📋 Git Pull Review Summary</h2>
+              <p className="tab-subtitle">Summarizing and reviewing changes introduced in the latest git pull operation</p>
               
               {results ? (
                 <div className="review-report-markdown" dangerouslySetInnerHTML={{ __html: formatMarkdown(results.review_report) }} />
               ) : (
                 <div className="empty-state">
                   <div className="icon">🚀</div>
-                  <h3>No Review Generated Yet</h3>
-                  <p>Click "Run PR Review" in the top bar to analyze your changes and generate an AI review using Paritok compression.</p>
+                  <h3>No Pull Review Generated</h3>
+                  <p>Click "Scan Pulled Changes" in the top bar to analyze updates and generate an AI review using Paritok compression.</p>
                 </div>
               )}
             </div>

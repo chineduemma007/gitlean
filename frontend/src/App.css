@@ -668,3 +668,49 @@
 .chart-dot-group:hover circle {
   r: 8;
 }
+
+/* Syntax Highlighting for GitLean Reports */
+.code-block {
+  font-family: 'Fira Code', 'JetBrains Mono', var(--font-mono);
+  font-size: 0.82rem !important;
+  line-height: 1.5;
+  background: #090e1a !important;
+  border: 1px solid rgba(0, 242, 254, 0.15) !important;
+}
+
+.code-keyword {
+  color: #ff79c6; /* Pink */
+  font-weight: 600;
+}
+
+.code-string {
+  color: #e6db74; /* Yellowish green */
+}
+
+.code-comment {
+  color: #6272a4; /* Dracula comment blue-gray */
+  font-style: italic;
+}
+
+.code-builtin {
+  color: #66d9ef; /* Cyan */
+}
+
+.code-literal {
+  color: #ae81ff; /* Purple */
+  font-weight: bold;
+}
+
+.diff-addition {
+  color: #a6e22e; /* Green */
+  background: rgba(166, 226, 46, 0.1);
+  display: block;
+  width: 100%;
+}
+
+.diff-deletion {
+  color: #f92672; /* Red */
+  background: rgba(249, 38, 114, 0.1);
+  display: block;
+  width: 100%;
+}
