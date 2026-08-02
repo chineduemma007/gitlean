@@ -8,13 +8,13 @@ import requests
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from backend.config import settings
-from backend.git_helper import get_modified_files, get_git_diff, get_file_content, get_demo_files, get_demo_diff
+from backend.git_helper import get_modified_files, get_git_diff, get_file_content, get_demo_files, get_demo_diff, get_pulled_files, get_pulled_diff
 from backend.paritok_client import compress_code
 from backend.llm_reviewer import get_code_review
 
-def run_local_review(demo_mode=False, level="medium"):
+def run_local_review(demo_mode=False, level="medium", scan_mode="pulled"):
     print("====================================================")
-    print(" GitLean CLI PR Reviewer (Token-Efficient)")
+    print(" GitLean CLI PR & Pull Reviewer (Token-Efficient)")
     print("====================================================")
     
     if demo_mode:
@@ -22,13 +22,27 @@ def run_local_review(demo_mode=False, level="medium"):
         files_dict = get_demo_files()
         git_diff = get_demo_diff()
     else:
-        print("Mode: LOCAL WORKSPACE SCAN")
-        modified = get_modified_files(".")
+        if scan_mode == "pulled":
+            print("Mode: SCANNING LATEST PULLED CHANGES (HEAD@{1} -> HEAD)")
+            modified = get_pulled_files(".")
+            git_diff = get_pulled_diff(".")
+        else:
+            print("Mode: SCANNING LOCAL UNCOMMITTED CHANGES")
+            modified = get_modified_files(".")
+            git_diff = get_git_diff(".")
+            
         if not modified:
-            print("No modified or unstaged files found. Try running with --demo flag!")
+            print(f"No changes found in repository using mode '{scan_mode}'.")
             return
-        files_dict = {str(f.relative_to(os.getcwd())): get_file_content(f) for f in modified}
-        git_diff = get_git_diff(".")
+            
+        # Avoid Windows casing mismatches using abspath conversion
+        files_dict = {}
+        for f in modified:
+            try:
+                rel = os.path.relpath(f, os.getcwd()).replace("\\", "/")
+                files_dict[rel] = get_file_content(f)
+            except Exception:
+                files_dict[str(f)] = get_file_content(f)
         
     print(f"Files to analyze: {list(files_dict.keys())}")
     print("Compressing context via Paritok model layer...")
@@ -163,12 +177,13 @@ if __name__ == "__main__":
     parser.add_argument("--demo", action="store_true", help="Run in mock demo mode.")
     parser.add_argument("--github-action", action="store_true", help="Run inside a GitHub Action workflow.")
     parser.add_argument("--level", default="medium", choices=["low", "medium", "high"], help="Compression level.")
+    parser.add_argument("--mode", default="pulled", choices=["pulled", "local"], help="Scanning mode (default: pulled).")
     
     args = parser.parse_args()
     
     if args.github_action:
         run_github_action()
     elif args.review:
-        run_local_review(demo_mode=args.demo, level=args.level)
+        run_local_review(demo_mode=args.demo, level=args.level, scan_mode=args.mode)
     else:
         parser.print_help()

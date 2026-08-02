@@ -5,6 +5,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('reviewer');
   const [demoMode, setDemoMode] = useState(true);
   const [repoPath, setRepoPath] = useState('');
+  const [scanMode, setScanMode] = useState('pulled');
   const [compressionLevel, setCompressionLevel] = useState('medium');
   const [loading, setLoading] = useState(false);
   const [diagLoading, setDiagLoading] = useState(false);
@@ -108,7 +109,8 @@ function App() {
         body: JSON.stringify({
           repo_path: repoPath,
           demo_mode: demoMode,
-          compression_level: compressionLevel
+          compression_level: compressionLevel,
+          scan_mode: scanMode
         })
       });
       
@@ -226,7 +228,7 @@ function App() {
           <span className="logo-icon">⚡</span>
           <div className="logo-text">
             <h1>GitLean</h1>
-            <p>Token-Efficient Git Reviewer</p>
+            <p>Token-Efficient Pulled Changes Reviewer</p>
           </div>
         </div>
 
@@ -237,17 +239,28 @@ function App() {
           </div>
 
           {!demoMode && (
-            <input 
-              type="text" 
-              placeholder="Absolute path to Git repository..." 
-              value={repoPath}
-              onChange={(e) => setRepoPath(e.target.value)}
-              className="repo-input"
-            />
+            <>
+              <input 
+                type="text" 
+                placeholder="Absolute path to Git repository..." 
+                value={repoPath}
+                onChange={(e) => setRepoPath(e.target.value)}
+                className="repo-input"
+              />
+              <select 
+                value={scanMode} 
+                onChange={(e) => setScanMode(e.target.value)}
+                className="repo-input"
+                style={{ width: '150px' }}
+              >
+                <option value="pulled">Pulled Changes (HEAD@{1})</option>
+                <option value="local">Local Changes (Uncommitted)</option>
+              </select>
+            </>
           )}
 
           <button className="btn btn-primary pulse-glow" onClick={runAnalysis} disabled={loading}>
-            {loading ? 'Analyzing...' : 'Run PR Review'}
+            {loading ? 'Analyzing...' : scanMode === 'pulled' ? 'Scan Pulled Changes' : 'Scan Local Changes'}
           </button>
 
           <button className="btn btn-settings" onClick={() => setShowSettings(true)}>

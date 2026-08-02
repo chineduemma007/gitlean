@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 import re
 
 from .config import settings
-from .git_helper import get_modified_files, get_git_diff, get_file_content, get_demo_files, get_demo_diff
+from .git_helper import get_modified_files, get_git_diff, get_file_content, get_demo_files, get_demo_diff, get_pulled_files, get_pulled_diff
 from .paritok_client import compress_code, test_api_connection
 from .llm_reviewer import get_code_review
 from .diagnostics import run_diagnostics
@@ -150,7 +150,14 @@ class GitLeanProxyRequestHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps({"detail": f"Path '{path_to_scan}' does not exist."}).encode("utf-8"))
                     return
 
-                modified = get_modified_files(path_to_scan)
+                scan_mode = body.get("scan_mode", "pulled")
+                if scan_mode == "pulled":
+                    modified = get_pulled_files(path_to_scan)
+                    git_diff = get_pulled_diff(path_to_scan)
+                else:
+                    modified = get_modified_files(path_to_scan)
+                    git_diff = get_git_diff(path_to_scan)
+
                 if not modified:
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
@@ -159,7 +166,7 @@ class GitLeanProxyRequestHandler(BaseHTTPRequestHandler):
                     
                     res_data = {
                         "status": "no_changes",
-                        "message": "No modified or unstaged files found in repository. Try Demo Mode!",
+                        "message": f"No changes found in repository using mode '{scan_mode}'.",
                         "original_tokens": 0,
                         "compressed_tokens": 0,
                         "savings_ratio": 0.0,
@@ -169,7 +176,6 @@ class GitLeanProxyRequestHandler(BaseHTTPRequestHandler):
                     return
 
                 files_dict = {make_relative_path(f, path_to_scan): get_file_content(f) for f in modified}
-                git_diff = get_git_diff(path_to_scan)
 
             compressed_files = {}
             total_original_tokens = 0
@@ -310,17 +316,26 @@ class GitLeanProxyRequestHandler(BaseHTTPRequestHandler):
                 else:
                     modified_messages.append(msg)
                     
-            # Smart Intent Interceptor: Check if user is requesting a code review
+            # Smart Intent Interceptor: Check if user is requesting a code review or merge/pull summary
             user_prompts = [m.get("content", "") for m in modified_messages if m.get("role") == "user" and isinstance(m.get("content"), str)]
             prompt_combined = " ".join(user_prompts).lower()
-            is_review_request = any(w in prompt_combined for w in ["review", "pr review", "pull request", "analyze changes", "check code"])
+            
+            is_pull_request = any(w in prompt_combined for w in ["pull", "pulled", "merge", "merged", "whats new", "what did they change", "explain updates", "latest changes"])
+            is_local_request = any(w in prompt_combined for w in ["review my changes", "unstaged", "uncommitted", "my local changes", "my code"])
+            is_review_request = is_pull_request or is_local_request or any(w in prompt_combined for w in ["review", "pr review", "check code"])
             
             if is_review_request:
-                print("[GitLean Proxy] Detected PR review request. Injecting custom GitLean code review report...")
-                modified_files = get_modified_files(".")
+                if is_pull_request:
+                    print("[GitLean Proxy] Detected Git PULL/MERGE review request. Scanning pulled changes...")
+                    modified_files = get_pulled_files(".")
+                    git_diff = get_pulled_diff(".")
+                else:
+                    print("[GitLean Proxy] Detected local workspace review request. Scanning unstaged modifications...")
+                    modified_files = get_modified_files(".")
+                    git_diff = get_git_diff(".")
+                    
                 if modified_files:
                     files_dict = {make_relative_path(f, os.getcwd()): get_file_content(f) for f in modified_files}
-                    git_diff = get_git_diff(".")
                     
                     # Compress files using Paritok
                     compressed_files = {}

@@ -207,6 +207,65 @@ index a2d4e9b..b76735c 100644
 +            return None
 """
 
+def get_pulled_files(cwd="."):
+    """Returns list of files changed in the last pull/merge operation (comparing HEAD@{1} to HEAD)."""
+    root = get_git_root(cwd)
+    if not root:
+        return []
+    
+    files = set()
+    try:
+        diff_files = subprocess.check_output(
+            ["git", "diff", "--name-only", "HEAD@{1}", "HEAD"],
+            cwd=root,
+            stderr=subprocess.DEVNULL
+        ).decode().splitlines()
+        files.update(diff_files)
+    except Exception:
+        # Fallback to the last commit
+        try:
+            diff_files = subprocess.check_output(
+                ["git", "diff", "--name-only", "HEAD~1", "HEAD"],
+                cwd=root,
+                stderr=subprocess.DEVNULL
+            ).decode().splitlines()
+            files.update(diff_files)
+        except Exception:
+            pass
+            
+    result = []
+    for f in sorted(list(files)):
+        full_path = root / f
+        if full_path.exists() and full_path.is_file():
+            result.append(full_path)
+    return result
+
+def get_pulled_diff(cwd="."):
+    """Returns the git diff representing the changes introduced by the last pull/merge."""
+    root = get_git_root(cwd)
+    if not root:
+        return ""
+    try:
+        diff_out = subprocess.check_output(
+            ["git", "diff", "HEAD@{1}", "HEAD"],
+            cwd=root,
+            stderr=subprocess.DEVNULL
+        ).decode()
+        if diff_out:
+            return diff_out
+    except Exception:
+        pass
+        
+    try:
+        diff_out = subprocess.check_output(
+            ["git", "diff", "HEAD~1", "HEAD"],
+            cwd=root,
+            stderr=subprocess.DEVNULL
+        ).decode()
+        return diff_out
+    except Exception:
+        return ""
+
 def get_demo_files():
     return MOCK_FILES
 
