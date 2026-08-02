@@ -80,10 +80,11 @@ function App() {
     const baseCompressedTokens = 4500;
     const baseCostSaved = 0.02;
 
-    const historyRequests = history.length;
-    const historyOriginal = history.reduce((acc, run) => acc + run.original_tokens, 0);
-    const historyCompressed = history.reduce((acc, run) => acc + run.compressed_tokens, 0);
-    const historyCost = history.reduce((acc, run) => acc + run.cost_saved, 0);
+    const list = Array.isArray(history) ? history : [];
+    const historyRequests = list.length;
+    const historyOriginal = list.reduce((acc, run) => acc + (run?.original_tokens || 0), 0);
+    const historyCompressed = list.reduce((acc, run) => acc + (run?.compressed_tokens || 0), 0);
+    const historyCost = list.reduce((acc, run) => acc + (run?.cost_saved || 0), 0);
 
     const totalRequests = baseRequests + historyRequests;
     const totalOriginal = baseOriginalTokens + historyOriginal;
@@ -97,7 +98,7 @@ function App() {
       requests: totalRequests,
       originalTokens: (totalOriginal / 1000).toFixed(1) + 'K',
       tokensSaved: (tokensSaved / 1000).toFixed(1) + 'K',
-      savingsRatio: (tokensSaved / totalOriginal).toFixed(3),
+      savingsRatio: totalOriginal > 0 ? (tokensSaved / totalOriginal).toFixed(3) : '0.000',
       savingsPercentage: savingsRatio + '%',
       costSaved: totalCost.toFixed(2)
     };
@@ -441,9 +442,9 @@ function App() {
           {activeTab === 'metrics' && (
             <div className="tab-content metrics-tab">
               <div className="welcome-header" style={{ marginBottom: '32px' }}>
-                <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#f8fafc', marginBottom: '4px' }}>Welcome back, Chinedu</h2>
+                <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#f8fafc', marginBottom: '4px' }}>GitLean Key Monitor</h2>
                 <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0 }}>
-                  chineduchukwu610@gmail.com · plan: <span style={{ color: '#10b981', fontWeight: 'bold' }}>Free (launch)</span>
+                  Active API key status and savings metrics tracking
                 </p>
               </div>
 
@@ -490,12 +491,14 @@ function App() {
                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'rgba(255,255,255,0.01)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
                     <div>
-                      <div style={{ fontWeight: 'bold', color: '#f8fafc', fontSize: '0.95rem' }}>gitlean</div>
-                      <div style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>pk_live_iqk...nrZb</div>
+                      <div style={{ fontWeight: 'bold', color: '#f8fafc', fontSize: '0.95rem' }}>gitlean-active-key</div>
+                      <div style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>
+                        {settings.api_key ? (settings.api_key.length > 20 ? settings.api_key.substring(0, 12) + '...' + settings.api_key.substring(settings.api_key.length - 6) : settings.api_key) : 'pk_live_iqkn9k5Csp8IkEYkHim5trSXTGRQnrZb (fallback)'}
+                      </div>
                     </div>
                     <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>{stats.requests} requests</span>
-                      <button className="btn btn-secondary" style={{ padding: '6px 14px', fontSize: '0.8rem', border: '1px solid #ef4444', color: '#ef4444', background: 'transparent', cursor: 'pointer' }}>Revoke</button>
+                      <button className="btn btn-secondary" style={{ padding: '6px 14px', fontSize: '0.85rem', border: '1px solid #10b981', color: '#10b981', background: 'transparent', cursor: 'default' }}>Active</button>
                     </div>
                   </div>
                 </div>
