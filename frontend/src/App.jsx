@@ -49,6 +49,26 @@ function App() {
   const [playgroundLoading, setPlaygroundLoading] = useState(false);
   const [playgroundLevel, setPlaygroundLevel] = useState('medium');
 
+  // Settings State
+  const [settings, setSettings] = useState({
+    use_gpu_server: false,
+    api_key: '',
+    upstream_api_key: ''
+  });
+  const [showSettings, setShowSettings] = useState(false);
+
+  // Analysis Results State
+  const [results, setResults] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [cachedFiles, setCachedFiles] = useState({});
+
+  // Diagnostic Results State
+  const [diagResults, setDiagResults] = useState(null);
+
+  // History State
+  const [history, setHistory] = useState([]);
+
+  // Functions & Calculations
   const runPlaygroundCompression = async () => {
     setPlaygroundLoading(true);
     setPlaygroundResult(null);
@@ -105,25 +125,6 @@ function App() {
   };
 
   const stats = getAggregatedStats();
-
-  // Settings State
-  const [settings, setSettings] = useState({
-    use_gpu_server: false,
-    api_key: '',
-    upstream_api_key: ''
-  });
-  const [showSettings, setShowSettings] = useState(false);
-
-  // Analysis Results State
-  const [results, setResults] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [cachedFiles, setCachedFiles] = useState({});
-
-  // Diagnostic Results State
-  const [diagResults, setDiagResults] = useState(null);
-
-  // History State
-  const [history, setHistory] = useState([]);
 
   // Load configuration and history on mount
   useEffect(() => {
