@@ -1,0 +1,7 @@
+# Paritok Configuration File
+# Generate defaults with `paritok init` or configure manually.
+
+use_gpu_server: false
+
+gpu_server:
+  api_key: "" # Insert your pk_live_... API key from paritok.com
