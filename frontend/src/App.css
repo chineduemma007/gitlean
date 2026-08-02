@@ -347,12 +347,18 @@
 
 .split-view {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
   background: #060913;
   border-radius: 12px;
   padding: 16px;
   border: 1px solid rgba(255, 255, 255, 0.05);
+  width: 100%;
+}
+
+.code-column {
+  min-width: 0;
+  width: 100%;
 }
 
 .code-column h4 {
