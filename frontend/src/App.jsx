@@ -1,6 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 
+const DEFAULT_PLAYGROUND_CODE = `# Paste any code here to test Paritok context compression live!
+
+import os
+import sys
+import time
+
+def parse_date_to_epoch(date_str):
+    # Unused helper method (Paritok will compress this out!)
+    print(f"Parsing date string: {date_str}")
+    return time.mktime(time.strptime(date_str, "%Y-%m-%d"))
+
+def generate_checksum_v1(payload):
+    # Another helper method (Paritok will collapse this logic!)
+    import hashlib
+    return hashlib.md5(payload.encode('utf-8')).hexdigest()
+
+class PaymentProcessor:
+    def __init__(self, api_key):
+        self.api_key = api_key
+
+    def charge_customer(self, customer_id, amount):
+        """
+        Primary action method to charge the client card.
+        """
+        print(f"Charging customer {customer_id} amount: {amount}")
+        try:
+            tx_id = f"TX_SUCCESS_{int(time.time())}"
+            return tx_id
+        except Exception as e:
+            # Silent failure bug!
+            return None
+`;
+
 function App() {
   const [activeTab, setActiveTab] = useState('reviewer');
   const [demoMode, setDemoMode] = useState(true);
@@ -10,6 +43,37 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [diagLoading, setDiagLoading] = useState(false);
   
+  // Playground State
+  const [playgroundCode, setPlaygroundCode] = useState(DEFAULT_PLAYGROUND_CODE);
+  const [playgroundResult, setPlaygroundResult] = useState(null);
+  const [playgroundLoading, setPlaygroundLoading] = useState(false);
+  const [playgroundLevel, setPlaygroundLevel] = useState('medium');
+
+  const runPlaygroundCompression = async () => {
+    setPlaygroundLoading(true);
+    setPlaygroundResult(null);
+    try {
+      const res = await fetch('http://127.0.0.1:8000/api/compress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code_content: playgroundCode,
+          compression_level: playgroundLevel
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPlaygroundResult(data);
+      } else {
+        alert("Compression failed.");
+      }
+    } catch (e) {
+      alert("Failed to connect to backend: " + e.message);
+    } finally {
+      setPlaygroundLoading(false);
+    }
+  };
+
   // Settings State
   const [settings, setSettings] = useState({
     use_gpu_server: false,
@@ -392,6 +456,12 @@ function App() {
             <button className={activeTab === 'visualizer' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('visualizer')}>
               🔍 Split-Screen Context Visualizer
             </button>
+            <button className={activeTab === 'playground' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('playground')}>
+              ⚡ Live Playground
+            </button>
+            <button className={activeTab === 'onboard' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('onboard')}>
+              📖 How to Setup
+            </button>
           </nav>
         </aside>
 
@@ -476,6 +546,124 @@ function App() {
                   <p>Run a local review in the dashboard, or configure your IDE coding assistant (like Antigravity) to use the GitLean proxy to see compression in real-time!</p>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Tab 3: Live Playground */}
+          {activeTab === 'playground' && (
+            <div className="tab-content playground-tab">
+              <h2>⚡ Live Paritok Compression Playground</h2>
+              <p className="tab-subtitle">Write or paste any raw code below to see Paritok compress it in real-time using our hosted API key.</p>
+              
+              <div className="playground-controls" style={{ display: 'flex', gap: '12px', marginBottom: '16px', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Compression Level:</span>
+                <select 
+                  value={playgroundLevel} 
+                  onChange={(e) => setPlaygroundLevel(e.target.value)}
+                  className="repo-input"
+                  style={{ width: '120px', margin: 0 }}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+                <button 
+                  className="btn btn-primary pulse-glow" 
+                  onClick={runPlaygroundCompression} 
+                  disabled={playgroundLoading}
+                  style={{ margin: 0 }}
+                >
+                  {playgroundLoading ? 'Compressing...' : 'Compress Code'}
+                </button>
+              </div>
+
+              <div className="split-view" style={{ minHeight: '400px' }}>
+                <div className="code-column">
+                  <h4>Raw Source Code</h4>
+                  <textarea 
+                    value={playgroundCode}
+                    onChange={(e) => setPlaygroundCode(e.target.value)}
+                    className="code-display"
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      minHeight: '380px',
+                      background: '#040712',
+                      color: '#e2e8f0',
+                      border: 'none',
+                      fontFamily: 'monospace',
+                      fontSize: '0.85rem',
+                      padding: '12px',
+                      outline: 'none',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+                <div className="code-column compressed">
+                  <h4>
+                    Paritok Compressed 
+                    {playgroundResult && (
+                      <span className="file-saving" style={{ marginLeft: '10px' }}>
+                        -{playgroundResult.savings_ratio}% tokens saved!
+                      </span>
+                    )}
+                  </h4>
+                  <pre className="code-display" style={{ height: '100%', minHeight: '380px', margin: 0 }}>
+                    <code>
+                      {playgroundResult ? (
+                        playgroundResult.compressed_code
+                      ) : (
+                        <span style={{ color: '#64748b', fontStyle: 'italic' }}>
+                          Click "Compress Code" above to run the Paritok LLM context compiler...
+                        </span>
+                      )}
+                    </code>
+                  </pre>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 4: How to Setup */}
+          {activeTab === 'onboard' && (
+            <div className="tab-content onboard-tab">
+              <h2>📖 Developer Quickstart Guide</h2>
+              <p className="tab-subtitle">Integrate GitLean transparently into your existing IDE agent terminal sessions.</p>
+
+              <div className="onboard-step" style={{ marginBottom: '24px' }}>
+                <h3>Step 1: Install the SDK globally</h3>
+                <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '8px' }}>Installs the command-line utility from PyPI:</p>
+                <pre className="code-block" style={{ margin: 0 }}><code>pip install gitlean-cli</code></pre>
+              </div>
+
+              <div className="onboard-step" style={{ marginBottom: '24px' }}>
+                <h3>Step 2: Launch the GitLean Proxy Daemon</h3>
+                <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '8px' }}>Starts the background local interceptor proxy listening on port 8000:</p>
+                <pre className="code-block" style={{ margin: 0 }}><code>gitlean up --port 8000</code></pre>
+              </div>
+
+              <div className="onboard-step" style={{ marginBottom: '24px' }}>
+                <h3>Step 3: Route Your Terminal Assistant Context</h3>
+                <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '8px' }}>Point your editor coding agent (like Antigravity or Claude Code) to route requests via GitLean:</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <h5 style={{ color: '#38bdf8', marginBottom: '4px' }}>Windows (PowerShell)</h5>
+                    <pre className="code-block" style={{ margin: 0 }}><code>$env:ANTHROPIC_BASE_URL = "http://127.0.0.1:8000/v1"</code></pre>
+                  </div>
+                  <div>
+                    <h5 style={{ color: '#38bdf8', marginBottom: '4px' }}>macOS / Linux (Bash)</h5>
+                    <pre className="code-block" style={{ margin: 0 }}><code>export ANTHROPIC_BASE_URL="http://127.0.0.1:8000/v1"</code></pre>
+                  </div>
+                </div>
+              </div>
+
+              <div className="onboard-step">
+                <h3>Step 4: Code Normally!</h3>
+                <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
+                  Ask your IDE agent questions like: <strong>"Explain what my teammate just pushed in the latest merge."</strong> 
+                  GitLean will intercept, isolate the changes, run Paritok compression, and feed it directly into your active chat window!
+                </p>
+              </div>
             </div>
           )}
         </main>

@@ -104,7 +104,27 @@ class GitLeanProxyRequestHandler(BaseHTTPRequestHandler):
         # ----------------------------------------------------
         # 1. Standard API Settings Endpoints
         # ----------------------------------------------------
-        if path == "/api/settings":
+        if path == "/api/compress":
+            code = body.get("code_content", "")
+            level = body.get("compression_level", "medium")
+            comp_res = compress_code(code, query="", level=level)
+            
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self._send_cors_headers()
+            self.end_headers()
+            
+            res_data = {
+                "original_tokens": comp_res["original_tokens"],
+                "compressed_code": comp_res["compressed"],
+                "compressed_tokens": comp_res["compressed_tokens"],
+                "savings_ratio": comp_res["savings_ratio"],
+                "gpu_used": comp_res["gpu_used"]
+            }
+            self.wfile.write(json.dumps(res_data).encode("utf-8"))
+            return
+
+        elif path == "/api/settings":
             settings.use_gpu_server = body.get("use_gpu_server", settings.use_gpu_server)
             settings.gpu_api_key = body.get("api_key", settings.gpu_api_key)
             upstream_key = body.get("upstream_api_key", "")
