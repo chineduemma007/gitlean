@@ -61,6 +61,32 @@ Ensure Python 3.9+ and Node.js are installed on your system.
    ```
    *Open `http://localhost:5173` in your browser to view the GitLean dashboard.*
 
+---
+
+## 📦 Production Distribution (SDK & VS Code Extension)
+
+To remove cloning and manual setup friction, GitLean is distributed in two developer-friendly formats:
+
+### 1. The GitLean CLI SDK (PyPI / npm package)
+Instead of cloning the repo, teams install GitLean globally:
+```bash
+# Install the SDK
+pip install gitlean-cli
+
+# Start the compression proxy in any workspace
+gitlean up --port 8000
+```
+This instantly fires up the background server and points your local terminal's agent context to GitLean.
+
+### 2. The VS Code / Cursor Extension
+For the ultimate zero-friction workflow, developers install the GitLean extension from the Marketplace:
+1. Open the [vscode-extension/](file:///C:/Users/user/Desktop/gitlean/vscode-extension) folder.
+2. In your terminal, run `vsce package` to compile the extension into a `.vsix` installer.
+3. Drag-and-drop the `.vsix` into VS Code.
+*   **What it does**: The extension automatically spawns the proxy server on startup, binds `ANTHROPIC_BASE_URL` to your terminals, and provides a **split-screen visual diff panel directly inside VS Code** (no external browser tab needed!).
+
+---
+
 ### 4. Run the Local CLI Reviewer
 You can also run GitLean directly in your terminal without starting any servers:
 ```bash
