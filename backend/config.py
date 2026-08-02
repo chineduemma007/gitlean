@@ -8,8 +8,8 @@ CONFIG_PATH = BASE_DIR / "paritok.yaml"
 
 class Settings:
     def __init__(self):
-        self.use_gpu_server = False
-        self.gpu_api_key = ""
+        self.use_gpu_server = True
+        self.gpu_api_key = "pk_live_iqkn9k5Csp8IkEYkHim5trSXTGRQnrZb"
         self.upstream_api_key = os.getenv("ANTHROPIC_API_KEY", "")
         self.upstream_model = "claude-3-5-sonnet-20241022"
         self.paritok_proxy_url = "http://127.0.0.1:8080" # local proxy url
@@ -34,6 +34,8 @@ class Settings:
 
         # Ensure environment keys take final precedence
         self.gpu_api_key = os.getenv("PARITOK_API_KEY", self.gpu_api_key)
+        if not self.gpu_api_key:
+            self.gpu_api_key = "pk_live_iqkn9k5Csp8IkEYkHim5trSXTGRQnrZb"
         self.upstream_api_key = os.getenv("ANTHROPIC_API_KEY", self.upstream_api_key)
 
     def save_config(self):
