@@ -27,3 +27,7 @@ dependencies = [
 
 [project.scripts]
 gitlean = "run_backend:main"
+
+[tool.setuptools]
+packages = ["backend"]
+py-modules = ["run_backend"]

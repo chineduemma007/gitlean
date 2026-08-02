@@ -19,3 +19,8 @@ dist/
 
 # Local logs & review exports
 gitlean_review.md
+
+# Packaging
+*.egg-info/
+build/
+dist/
