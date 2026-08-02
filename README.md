@@ -1,25 +1,27 @@
-# GitLean: Token-Efficient PR Reviewer & Context Compressor
+# GitLean: Token-Efficient Git Pull Explainer & Reviewer
 
 [![Built with Paritok](https://img.shields.io/badge/Built%20with-Paritok-1f2d3d)](https://github.com/Paritok-official/paritok-4b-v1)
 
-GitLean is a developer tool and interactive dashboard designed to automate Pull Request code reviews while keeping token usage lean. Built for the **Build with Paritok Hackathon**, GitLean integrates with Paritok's hosted GPU endpoint to compress codebase context before sending it to upstream LLMs (such as Anthropic Claude), resulting in up to **75%+ token and cost savings**.
+GitLean is a developer tool and dashboard specifically designed for developers working in teams who pull updates from colleagues and ask an AI agent (like Antigravity or Claude Code) to explain, summarize, or review what was just pulled. 
+
+By sitting as a smart proxy between your IDE assistant and upstream LLMs, GitLean intercepts requests about pulled changes, automatically isolates the exact modified files (using `git diff HEAD@{1} HEAD`), and compresses them via Paritok. This reduces prompt token usage, latency, and costs by **75%+** while providing clean, concise code explanations directly in your editor.
 
 ---
 
 ## ⚡ Core Features
 
-1. **Context Compression Visualizer**: A split-screen visual diff that shows original source files side-by-side with Paritok's compressed representation (collapsing boilerplate imports and helpers, highlighting active logic).
-2. **Savings Analytics**: Dynamic interactive charts mapping token reduction percentages, cost savings in USD, and latency metrics across your reviews.
-3. **Automated Diagnostic Suite**: A built-in security and integration auditor that probes the Paritok hosted API and generates a detailed bug and feedback report, writing results directly to `feedback.md`.
-4. **Social Blitz Hub**: A dedicated campaign tab displaying generated tweet drafts based on actual savings, making it effortless to share findings with the community.
+1. **Git Pull Interceptor**: Automatically compares your branch's state before and after you run `git pull` (comparing `HEAD@{1}` to `HEAD`), isolating only the changes introduced by your team.
+2. **Context Compression Visualizer**: A split-screen visual diff that shows original source files side-by-side with Paritok's compressed representation (collapsing boilerplate imports and helpers, highlighting active logic).
+3. **Savings Analytics**: Dynamic interactive charts mapping token reduction percentages, cost savings in USD, and latency metrics across your reviews.
+4. **Automated Diagnostic Suite**: A built-in security and integration auditor that probes the Paritok hosted API and generates a detailed bug and feedback report, writing results directly to `feedback.md`.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Backend**: FastAPI (Python), PyYAML, Requests
-- **Frontend**: React, Vite, Tailwind-like custom vanilla CSS (glassmorphism dashboard)
-- **Integration**: Direct connection to Paritok Hosted GPU API / Local Proxy, Anthropic Claude API (Upstream LLM)
+- **Backend**: Python standard library `http.server` (zero external dependencies, runs out-of-the-box).
+- **Frontend**: React, Vite, glassmorphism dark-mode vanilla CSS.
+- **Integration**: Direct connection to Paritok Hosted GPU API (with pre-configured shared key), Anthropic Claude API (Upstream LLM).
 
 ---
 
