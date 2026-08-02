@@ -80,6 +80,19 @@ def run_local_review(demo_mode=False, level="medium", scan_mode="pulled"):
         f.write(review)
     print(f"Review report saved to {output_path}")
 
+    # Register run metrics in local dashboard if backend is running
+    if total_original > 0:
+        try:
+            payload = {
+                "original_tokens": total_original,
+                "compressed_tokens": total_compressed,
+                "savings": savings_ratio,
+                "cost_saved": round((total_original - total_compressed) * 0.000003, 4)
+            }
+            requests.post("http://127.0.0.1:8000/api/history", json=payload, timeout=2)
+        except Exception:
+            pass
+
 def run_github_action():
     print("Running GitLean PR Reviewer in GitHub Action...")
     

@@ -109,6 +109,18 @@ class GitLeanProxyRequestHandler(BaseHTTPRequestHandler):
             level = body.get("compression_level", "medium")
             comp_res = compress_code(code, query="", level=level)
             
+            # Record successfully compressed playground requests to analytics history
+            if comp_res.get("original_tokens", 0) > 0:
+                cost_saved = round((comp_res["original_tokens"] - comp_res["compressed_tokens"]) * 0.000003, 4)
+                new_run = {
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M"),
+                    "original_tokens": comp_res["original_tokens"],
+                    "compressed_tokens": comp_res["compressed_tokens"],
+                    "savings": comp_res["savings_ratio"],
+                    "cost_saved": cost_saved
+                }
+                HISTORY.append(new_run)
+
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self._send_cors_headers()
@@ -122,6 +134,23 @@ class GitLeanProxyRequestHandler(BaseHTTPRequestHandler):
                 "gpu_used": comp_res["gpu_used"]
             }
             self.wfile.write(json.dumps(res_data).encode("utf-8"))
+            return
+
+        elif path == "/api/history":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self._send_cors_headers()
+            self.end_headers()
+            
+            new_run = {
+                "timestamp": time.strftime("%Y-%m-%d %H:%M"),
+                "original_tokens": int(body.get("original_tokens", 0)),
+                "compressed_tokens": int(body.get("compressed_tokens", 0)),
+                "savings": float(body.get("savings", 0.0)),
+                "cost_saved": float(body.get("cost_saved", 0.0))
+            }
+            HISTORY.append(new_run)
+            self.wfile.write(json.dumps({"status": "registered"}).encode("utf-8"))
             return
 
         elif path == "/api/settings":
