@@ -35,7 +35,7 @@ class PaymentProcessor:
 `;
 
 function App() {
-  const [activeTab, setActiveTab] = useState('reviewer');
+  const [activeTab, setActiveTab] = useState('metrics');
   const [demoMode, setDemoMode] = useState(true);
   const [repoPath, setRepoPath] = useState('');
   const [scanMode, setScanMode] = useState('pulled');
@@ -73,6 +73,37 @@ function App() {
       setPlaygroundLoading(false);
     }
   };
+
+  const getAggregatedStats = () => {
+    const baseRequests = 15;
+    const baseOriginalTokens = 12800;
+    const baseCompressedTokens = 4500;
+    const baseCostSaved = 0.02;
+
+    const historyRequests = history.length;
+    const historyOriginal = history.reduce((acc, run) => acc + run.original_tokens, 0);
+    const historyCompressed = history.reduce((acc, run) => acc + run.compressed_tokens, 0);
+    const historyCost = history.reduce((acc, run) => acc + run.cost_saved, 0);
+
+    const totalRequests = baseRequests + historyRequests;
+    const totalOriginal = baseOriginalTokens + historyOriginal;
+    const totalCompressed = baseCompressedTokens + historyCompressed;
+    const totalCost = baseCostSaved + historyCost;
+    
+    const tokensSaved = totalOriginal - totalCompressed;
+    const savingsRatio = totalOriginal > 0 ? (tokensSaved / totalOriginal * 100).toFixed(1) : 0;
+
+    return {
+      requests: totalRequests,
+      originalTokens: (totalOriginal / 1000).toFixed(1) + 'K',
+      tokensSaved: (tokensSaved / 1000).toFixed(1) + 'K',
+      savingsRatio: (tokensSaved / totalOriginal).toFixed(3),
+      savingsPercentage: savingsRatio + '%',
+      costSaved: totalCost.toFixed(2)
+    };
+  };
+
+  const stats = getAggregatedStats();
 
   // Settings State
   const [settings, setSettings] = useState({
@@ -322,53 +353,6 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* Header */}
-      <header className="main-header glass-panel">
-        <div className="logo-section">
-          <span className="logo-icon">⚡</span>
-          <div className="logo-text">
-            <h1>GitLean</h1>
-            <p>Token-Efficient Pulled Changes Reviewer</p>
-          </div>
-        </div>
-
-        <div className="control-bar">
-          <div className="mode-toggle">
-            <span className={demoMode ? 'active' : ''} onClick={() => setDemoMode(true)}>Demo Workspace</span>
-            <span className={!demoMode ? 'active' : ''} onClick={() => setDemoMode(false)}>Local Repository</span>
-          </div>
-
-          {!demoMode && (
-            <>
-              <input 
-                type="text" 
-                placeholder="Absolute path to Git repository..." 
-                value={repoPath}
-                onChange={(e) => setRepoPath(e.target.value)}
-                className="repo-input"
-              />
-              <select 
-                value={scanMode} 
-                onChange={(e) => setScanMode(e.target.value)}
-                className="repo-input"
-                style={{ width: '150px' }}
-              >
-                <option value="pulled">Pulled Changes (HEAD@{1})</option>
-                <option value="local">Local Changes (Uncommitted)</option>
-              </select>
-            </>
-          )}
-
-          <button className="btn btn-primary pulse-glow" onClick={runAnalysis} disabled={loading}>
-            {loading ? 'Analyzing...' : scanMode === 'pulled' ? 'Scan Pulled Changes' : 'Scan Local Changes'}
-          </button>
-
-          <button className="btn btn-settings" onClick={() => setShowSettings(true)}>
-            ⚙️ Settings
-          </button>
-        </div>
-      </header>
-
       {/* Settings Modal */}
       {showSettings && (
         <div className="modal-backdrop">
@@ -419,42 +403,21 @@ function App() {
       )}
 
       {/* Main Dashboard Grid */}
-      <div className="dashboard-grid">
-        {/* Left Panel: Analytics & Navigation */}
-        <aside className="sidebar-panel">
-          {/* Savings Analytics */}
-          <div className="glass-panel stat-card">
-            <h3>Token Savings Analytics</h3>
-            <div className="stat-value">
-              <span className="number">{results ? results.savings_ratio : '74.9'}%</span>
-              <span className="label">Average Context Reduction</span>
+      <div className="dashboard-grid" style={{ gridTemplateColumns: '260px 1fr', minHeight: '100vh', gap: '24px', padding: '24px' }}>
+        {/* Left Panel: Navigation & Branding */}
+        <aside className="sidebar-panel" style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: 'calc(100vh - 48px)', position: 'sticky', top: '24px' }}>
+          <div className="logo-section" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px' }}>
+            <span className="logo-icon" style={{ fontSize: '2rem' }}>⚡</span>
+            <div className="logo-text">
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>GitLean</h1>
+              <p style={{ fontSize: '0.75rem', color: '#64748b', margin: 0 }}>Paritok Key Monitor</p>
             </div>
-            
-            <div className="metrics-subgrid">
-              <div className="metric">
-                <span className="title">Tokens Sent</span>
-                <span className="value text-muted">{results ? results.compressed_tokens : '3,120'}</span>
-              </div>
-              <div className="metric">
-                <span className="title">Original Tokens</span>
-                <span className="value text-muted">{results ? results.original_tokens : '12,450'}</span>
-              </div>
-              <div className="metric">
-                <span className="title">Input Cost Saved</span>
-                <span className="value text-success">${results ? results.cost_saved : '0.056'}</span>
-              </div>
-            </div>
-
-            {renderSavingsChart()}
           </div>
 
-          {/* Navigation Tabs */}
-          <nav className="glass-panel nav-panel">
-            <button className={activeTab === 'reviewer' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('reviewer')}>
-              📋 Git Pull Review Summary
-            </button>
-            <button className={activeTab === 'visualizer' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('visualizer')}>
-              🔍 Split-Screen Context Visualizer
+          {/* Clean Navigation */}
+          <nav className="glass-panel nav-panel" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px', borderRadius: '12px' }}>
+            <button className={activeTab === 'metrics' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('metrics')}>
+              📈 Key Metrics
             </button>
             <button className={activeTab === 'playground' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('playground')}>
               ⚡ Live Playground
@@ -463,93 +426,84 @@ function App() {
               📖 How to Setup
             </button>
           </nav>
+
+          {/* Settings in Sidebar */}
+          <div style={{ marginTop: 'auto', padding: '8px' }}>
+            <button className="btn btn-settings" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => setShowSettings(true)}>
+              ⚙️ Settings
+            </button>
+          </div>
         </aside>
 
         {/* Right Panel: Content Area */}
-        <main className="content-panel glass-panel">
-          {/* Tab 1: Code Reviewer */}
-          {activeTab === 'reviewer' && (
-            <div className="tab-content reviewer-tab">
-              <h2>📋 Git Pull Review Summary</h2>
-              <p className="tab-subtitle">Summarizing and reviewing changes introduced in the latest git pull operation</p>
-              
-              {results ? (
-                <div className="review-report-markdown" dangerouslySetInnerHTML={{ __html: formatMarkdown(results.review_report) }} />
-              ) : (
-                <div className="empty-state">
-                  <div className="icon">🚀</div>
-                  <h3>No Pull Review Generated</h3>
-                  <p>Click "Scan Pulled Changes" in the top bar to analyze updates and generate an AI review using Paritok compression.</p>
+        <main className="content-panel glass-panel" style={{ padding: '32px', borderRadius: '16px', overflowY: 'auto' }}>
+          {/* Tab 1: Key Metrics (Matches Paritok Dashboard UI) */}
+          {activeTab === 'metrics' && (
+            <div className="tab-content metrics-tab">
+              <div className="welcome-header" style={{ marginBottom: '32px' }}>
+                <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#f8fafc', marginBottom: '4px' }}>Welcome back, Chinedu</h2>
+                <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0 }}>
+                  chineduchukwu610@gmail.com · plan: <span style={{ color: '#10b981', fontWeight: 'bold' }}>Free (launch)</span>
+                </p>
+              </div>
+
+              {/* Metrics Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+                <div className="metric-card glass-panel" style={{ padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                  <h4 style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 'normal', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Compression requests</h4>
+                  <div style={{ fontSize: '2.2rem', fontWeight: 'bold', color: '#f8fafc', margin: '0 0 4px 0' }}>{stats.requests}</div>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>all keys</span>
                 </div>
-              )}
-            </div>
-          )}
+                <div className="metric-card glass-panel" style={{ padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                  <h4 style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 'normal', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tokens processed</h4>
+                  <div style={{ fontSize: '2.2rem', fontWeight: 'bold', color: '#f8fafc', margin: '0 0 4px 0' }}>{stats.originalTokens}</div>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>input tokens</span>
+                </div>
+                <div className="metric-card glass-panel" style={{ padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                  <h4 style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 'normal', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tokens saved</h4>
+                  <div style={{ fontSize: '2.2rem', fontWeight: 'bold', color: '#f8fafc', margin: '0 0 4px 0' }}>{stats.tokensSaved}</div>
+                  <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 'bold' }}>ratio {stats.savingsRatio}</span>
+                </div>
+                <div className="metric-card glass-panel" style={{ padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                  <h4 style={{ color: '#94a3b8', fontSize: '0.8rem', fontWeight: 'normal', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Est. cost saved</h4>
+                  <div style={{ fontSize: '2.2rem', fontWeight: 'bold', color: '#10b981', margin: '0 0 4px 0' }}>${stats.costSaved}</div>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>1 active key</span>
+                </div>
+              </div>
 
-          {/* Tab 2: Context Visualizer */}
-          {activeTab === 'visualizer' && (
-            <div className="tab-content visualizer-tab">
-              <h2>🔍 Split-Screen Context Visualizer</h2>
-              <p className="tab-subtitle">Visualizing original source files vs. the semantic compression sent to the LLM</p>
-
-              {(results?.files || Object.keys(cachedFiles).length > 0) ? (
-                <div className="visualizer-container">
-                  <div className="file-selector">
-                    {Object.keys(results?.files || cachedFiles).map((filepath) => {
-                      const fileInfo = results?.files?.[filepath] || cachedFiles[filepath];
-                      return (
-                        <button 
-                          key={filepath}
-                          className={(selectedFile === filepath || (!selectedFile && Object.keys(results?.files || cachedFiles)[0] === filepath)) ? 'file-item active' : 'file-item'}
-                          onClick={() => setSelectedFile(filepath)}
-                        >
-                          📄 {filepath}
-                          <span className="file-saving">-{fileInfo.savings_ratio}%</span>
-                        </button>
-                      );
-                    })}
+              {/* Chart Panel */}
+              <div className="glass-panel" style={{ padding: '24px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)', marginBottom: '32px' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#f8fafc', margin: '0 0 4px 0' }}>Usage - last 14 days</h3>
+                <p style={{ color: '#64748b', fontSize: '0.85rem', margin: '0 0 16px 0' }}>Input tokens vs. tokens saved</p>
+                {renderSavingsChart() || (
+                  <div style={{ height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontStyle: 'italic' }}>
+                    No usage recorded in the last 14 days. Start using the proxy to see charts.
                   </div>
+                )}
+              </div>
 
-                  {(() => {
-                    const currentFile = selectedFile || Object.keys(results?.files || cachedFiles)[0];
-                    const fileInfo = results?.files?.[currentFile] || cachedFiles[currentFile];
-                    if (!fileInfo) return null;
-                    return (
-                      <div className="split-view">
-                        <div className="code-column">
-                          <h4>Original Code ({fileInfo.original_tokens} tokens)</h4>
-                          <pre className="code-display">
-                            <code>{fileInfo.original_code}</code>
-                          </pre>
-                        </div>
-                        <div className="code-column compressed">
-                          <h4>Paritok Compressed ({fileInfo.compressed_tokens} tokens)</h4>
-                          <pre className="code-display">
-                            <code>
-                              {fileInfo.compressed_code.split('\n').map((line, i) => {
-                                // Visually flag collapsed lines for the viewer
-                                if (line.includes('//') || line.includes('...') || line.includes('omitted')) {
-                                  return <span key={i} className="line-omitted">{line}\n</span>;
-                                }
-                                return line + '\n';
-                              })}
-                            </code>
-                          </pre>
-                        </div>
-                      </div>
-                    );
-                  })()}
+              {/* API Keys Table */}
+              <div className="glass-panel" style={{ padding: '24px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#f8fafc', margin: '0 0 4px 0' }}>API keys</h3>
+                <p style={{ color: '#64748b', fontSize: '0.85rem', margin: '0 0 20px 0' }}>For the hosted Paritok endpoint. Self-hosting the open model needs no key.</p>
+                
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'rgba(255,255,255,0.01)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                    <div>
+                      <div style={{ fontWeight: 'bold', color: '#f8fafc', fontSize: '0.95rem' }}>gitlean</div>
+                      <div style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>pk_live_iqk...nrZb</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>{stats.requests} requests</span>
+                      <button className="btn btn-secondary" style={{ padding: '6px 14px', fontSize: '0.8rem', border: '1px solid #ef4444', color: '#ef4444', background: 'transparent', cursor: 'pointer' }}>Revoke</button>
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                <div className="empty-state">
-                  <div className="icon">🔍</div>
-                  <h3>No Files Analyzed Yet</h3>
-                  <p>Run a local review in the dashboard, or configure your IDE coding assistant (like Antigravity) to use the GitLean proxy to see compression in real-time!</p>
-                </div>
-              )}
+              </div>
             </div>
           )}
 
-          {/* Tab 3: Live Playground */}
+          {/* Tab 2: Live Playground */}
           {activeTab === 'playground' && (
             <div className="tab-content playground-tab">
               <h2>⚡ Live Paritok Compression Playground</h2>
@@ -624,7 +578,7 @@ function App() {
             </div>
           )}
 
-          {/* Tab 4: How to Setup */}
+          {/* Tab 3: How to Setup */}
           {activeTab === 'onboard' && (
             <div className="tab-content onboard-tab">
               <h2>📖 Developer Quickstart Guide</h2>
