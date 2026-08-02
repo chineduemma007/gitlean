@@ -13,6 +13,20 @@ from .llm_reviewer import get_code_review
 from .diagnostics import run_diagnostics
 
 # Global history of compressed runs
+def make_relative_path(file_path, base_path):
+    try:
+        abs_file = os.path.abspath(file_path)
+        abs_base = os.path.abspath(base_path)
+        # Normalize slashes for consistency
+        abs_file = abs_file.replace("\\", "/")
+        abs_base = abs_base.replace("\\", "/")
+        if abs_file.lower().startswith(abs_base.lower()):
+            rel = abs_file[len(abs_base):].lstrip("/")
+            return rel if rel else "."
+    except Exception:
+        pass
+    return str(file_path)
+
 HISTORY = [
     {"timestamp": "2026-07-28 14:22", "original_tokens": 12450, "compressed_tokens": 3120, "savings": 74.9, "cost_saved": 0.056},
     {"timestamp": "2026-07-29 09:15", "original_tokens": 8900, "compressed_tokens": 2010, "savings": 77.4, "cost_saved": 0.041},
@@ -128,7 +142,7 @@ class GitLeanProxyRequestHandler(BaseHTTPRequestHandler):
                 files_dict = get_demo_files()
                 git_diff = get_demo_diff()
             else:
-                path_to_scan = repo_path or "."
+                path_to_scan = os.path.abspath(repo_path or ".")
                 if not os.path.exists(path_to_scan):
                     self.send_response(400)
                     self._send_cors_headers()
@@ -154,7 +168,7 @@ class GitLeanProxyRequestHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps(res_data).encode("utf-8"))
                     return
 
-                files_dict = {str(f.relative_to(path_to_scan) if hasattr(f, "relative_to") else f): get_file_content(f) for f in modified}
+                files_dict = {make_relative_path(f, path_to_scan): get_file_content(f) for f in modified}
                 git_diff = get_git_diff(path_to_scan)
 
             compressed_files = {}
@@ -305,7 +319,7 @@ class GitLeanProxyRequestHandler(BaseHTTPRequestHandler):
                 print("[GitLean Proxy] Detected PR review request. Injecting custom GitLean code review report...")
                 modified_files = get_modified_files(".")
                 if modified_files:
-                    files_dict = {str(f.relative_to(os.getcwd()) if hasattr(f, "relative_to") else f): get_file_content(f) for f in modified_files}
+                    files_dict = {make_relative_path(f, os.getcwd()): get_file_content(f) for f in modified_files}
                     git_diff = get_git_diff(".")
                     
                     # Compress files using Paritok

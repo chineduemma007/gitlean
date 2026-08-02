@@ -156,6 +156,8 @@ def run_github_action():
         print(f"Network error trying to post PR comment: {e}")
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="GitLean CLI tool for token-efficient code reviews.")
     parser.add_argument("--review", action="store_true", help="Run a code review on local workspace modifications.")
     parser.add_argument("--demo", action="store_true", help="Run in mock demo mode.")
