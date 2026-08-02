@@ -296,6 +296,44 @@ class GitLeanProxyRequestHandler(BaseHTTPRequestHandler):
                 else:
                     modified_messages.append(msg)
                     
+            # Smart Intent Interceptor: Check if user is requesting a code review
+            user_prompts = [m.get("content", "") for m in modified_messages if m.get("role") == "user" and isinstance(m.get("content"), str)]
+            prompt_combined = " ".join(user_prompts).lower()
+            is_review_request = any(w in prompt_combined for w in ["review", "pr review", "pull request", "analyze changes", "check code"])
+            
+            if is_review_request:
+                print("[GitLean Proxy] Detected PR review request. Injecting custom GitLean code review report...")
+                modified_files = get_modified_files(".")
+                if modified_files:
+                    files_dict = {str(f.relative_to(os.getcwd()) if hasattr(f, "relative_to") else f): get_file_content(f) for f in modified_files}
+                    git_diff = get_git_diff(".")
+                    
+                    # Compress files using Paritok
+                    compressed_files = {}
+                    for filepath, content in files_dict.items():
+                        comp_res = compress_code(content, query=git_diff, level="medium")
+                        compressed_files[filepath] = {
+                            "original_code": content,
+                            "compressed_code": comp_res["compressed"],
+                            "original_tokens": comp_res["original_tokens"],
+                            "compressed_tokens": comp_res["compressed_tokens"],
+                            "savings_ratio": comp_res["savings_ratio"],
+                            "gpu_used": comp_res["gpu_used"]
+                        }
+                        COMPRESSED_FILES_CACHE[filepath] = compressed_files[filepath]
+                        
+                    # Generate report
+                    review_report = get_code_review(git_diff, compressed_files, use_mock=False)
+                    
+                    # Inject report into the last user message
+                    injected_note = f"\n\n[GitLean Context-Compressed Code Review (Integrate these findings and present them beautifully to the developer):\n{review_report}]"
+                    for i in reversed(range(len(modified_messages))):
+                        if modified_messages[i].get("role") == "user":
+                            orig_val = modified_messages[i].get("content", "")
+                            if isinstance(orig_val, str):
+                                modified_messages[i]["content"] = orig_val + injected_note
+                                break
+            
             # Update body messages
             body["messages"] = modified_messages
             
