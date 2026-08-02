@@ -514,25 +514,68 @@ function App() {
                 <br/><br/>
                 When you ask your agent to summarize what was changed in a pull or merge, GitLean intercepts the request, isolates the exact changes (using <code>git diff HEAD@&#123;1&#125; HEAD</code>), and compresses them via Paritok. This reduces prompt tokens, response latency, and API billing costs by <strong>50% to 75%+</strong>.
               </p>
+              <h2>📖 Choose Your Setup Path</h2>
+              <p className="tab-subtitle" style={{ marginBottom: '24px' }}>GitLean works on any machine, even if you do not have Python installed. Select your preferred method:</p>
 
-              <h2>📖 Developer Quickstart Guide</h2>
-              <p className="tab-subtitle" style={{ marginBottom: '24px' }}>Integrate GitLean transparently into your existing IDE terminal sessions:</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '32px' }}>
+                {/* Path 1: VS Code */}
+                <div className="glass-panel" style={{ padding: '20px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.2)', background: 'rgba(56, 189, 248, 0.02)' }}>
+                  <h4 style={{ color: '#38bdf8', margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>🔌</span> VS Code Extension (Recommended)
+                  </h4>
+                  <p style={{ color: '#94a3b8', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 16px 0' }}>
+                    Zero-config setup. Automatically bundles the native GitLean binary and runs it silently in the background. No Python required.
+                  </p>
+                  <ol style={{ color: '#cbd5e1', fontSize: '0.8rem', paddingLeft: '16px', margin: 0 }}>
+                    <li style={{ marginBottom: '6px' }}>Open VS Code Extensions marketplace.</li>
+                    <li style={{ marginBottom: '6px' }}>Search for <strong>GitLean</strong> and click <strong>Install</strong>.</li>
+                    <li>Reload VS Code. That's it!</li>
+                  </ol>
+                </div>
 
-              <div className="onboard-step" style={{ marginBottom: '24px' }}>
-                <h3>Step 1: Install the SDK globally</h3>
-                <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '8px' }}>Installs the command-line utility from PyPI:</p>
-                <pre className="code-block" style={{ margin: 0 }}><code>pip install gitlean-cli</code></pre>
+                {/* Path 2: Standalone Binary */}
+                <div className="glass-panel" style={{ padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                  <h4 style={{ color: '#f8fafc', margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>📦</span> Standalone Executable Binary
+                  </h4>
+                  <p style={{ color: '#94a3b8', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 16px 0' }}>
+                    Run the reviewer in any folder as a single portable program. Does not need Python or Pip installed.
+                  </p>
+                  <ol style={{ color: '#cbd5e1', fontSize: '0.8rem', paddingLeft: '16px', margin: 0 }}>
+                    <li style={{ marginBottom: '6px' }}>Download the pre-compiled binary for Windows/macOS from GitHub.</li>
+                    <li style={{ marginBottom: '6px' }}>Drag the binary into your project directory.</li>
+                    <li>Run <code>.\gitlean.exe --review</code>.</li>
+                  </ol>
+                </div>
+
+                {/* Path 3: Python Package */}
+                <div className="glass-panel" style={{ padding: '20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                  <h4 style={{ color: '#94a3b8', margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>🐍</span> Python PyPI Package
+                  </h4>
+                  <p style={{ color: '#94a3b8', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 16px 0' }}>
+                    For Python developers who want the CLI utility installed globally as an SDK tool.
+                  </p>
+                  <ol style={{ color: '#cbd5e1', fontSize: '0.8rem', paddingLeft: '16px', margin: 0 }}>
+                    <li style={{ marginBottom: '6px' }}>Run <code>pip install gitlean-cli</code> in your command line.</li>
+                    <li style={{ marginBottom: '6px' }}>Start the local proxy: <code>gitlean up</code>.</li>
+                    <li>Configure environment variables to route prompts.</li>
+                  </ol>
+                </div>
               </div>
 
+              <h2>💻 How to Integrate the CLI Proxy manually</h2>
+              <p className="tab-subtitle" style={{ marginBottom: '24px' }}>If you are running the standalone binary or pip package, set up your active terminal sessions:</p>
+
               <div className="onboard-step" style={{ marginBottom: '24px' }}>
-                <h3>Step 2: Launch the GitLean Proxy Daemon</h3>
-                <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '8px' }}>Starts the background local interceptor proxy listening on port 8000:</p>
+                <h3>1. Start the Local Daemon</h3>
+                <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '8px' }}>Run the background interceptor proxy (defaults to port 8000):</p>
                 <pre className="code-block" style={{ margin: 0 }}><code>gitlean up --port 8000</code></pre>
               </div>
 
               <div className="onboard-step" style={{ marginBottom: '24px' }}>
-                <h3>Step 3: Route Your Terminal Assistant Context</h3>
-                <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '8px' }}>Point your editor coding agent (like Antigravity or Claude Code) to route requests via GitLean:</p>
+                <h3>2. Route Your Terminal Coding Agent</h3>
+                <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '8px' }}>Point your active agent (like Claude Code or Antigravity) to send queries via the proxy:</p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
                     <h5 style={{ color: '#38bdf8', marginBottom: '4px' }}>Windows (PowerShell)</h5>
@@ -546,10 +589,10 @@ function App() {
               </div>
 
               <div className="onboard-step">
-                <h3>Step 4: Code Normally!</h3>
+                <h3>3. Ask for a Diff Summary!</h3>
                 <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
-                  Ask your IDE agent questions like: <strong>"Explain what my teammate just pushed in the latest merge."</strong> 
-                  GitLean will intercept, isolate the changes, run Paritok compression, and feed it directly into your active chat window!
+                  Ask your coding agent: <strong>"Review the latest uncommitted changes in this repository."</strong> 
+                  GitLean will automatically intercept the prompt, compress the file context, and feed the token-efficient code back into the LLM chat stream!
                 </p>
               </div>
             </div>
