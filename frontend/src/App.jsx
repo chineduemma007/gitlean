@@ -35,7 +35,7 @@ class PaymentProcessor:
 `;
 
 function App() {
-  const [activeTab, setActiveTab] = useState('metrics');
+  const [activeTab, setActiveTab] = useState('onboard');
   const [demoMode, setDemoMode] = useState(true);
   const [repoPath, setRepoPath] = useState('');
   const [scanMode, setScanMode] = useState('pulled');
@@ -355,55 +355,6 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* Settings Modal */}
-      {showSettings && (
-        <div className="modal-backdrop">
-          <div className="modal-content glass-panel">
-            <h2>Paritok & Upstream Configuration</h2>
-            <form onSubmit={saveSettings}>
-              <div className="form-group">
-                <label>Compression Strategy</label>
-                <div className="toggle-container">
-                  <input 
-                    type="checkbox" 
-                    id="use_gpu"
-                    checked={settings.use_gpu_server}
-                    onChange={(e) => setSettings({...settings, use_gpu_server: e.target.checked})}
-                  />
-                  <label htmlFor="use_gpu">Use Hosted GPU Server (Paritok.com)</label>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Paritok API Key (pk_live_...)</label>
-                <input 
-                  type="password" 
-                  value={settings.api_key} 
-                  onChange={(e) => setSettings({...settings, api_key: e.target.value})}
-                  placeholder="Enter API Key from paritok.com dashboard"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Anthropic API Key (Claude Code Upstream)</label>
-                <input 
-                  type="password" 
-                  value={settings.upstream_api_key} 
-                  onChange={(e) => setSettings({...settings, upstream_api_key: e.target.value})}
-                  placeholder="Optional: Enter Claude key for real upstream API calls"
-                />
-                <p className="help-text">If left blank, GitLean uses the high-fidelity mock reviewer for the demo.</p>
-              </div>
-
-              <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowSettings(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Save Settings</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* Main Dashboard Grid */}
       <div className="dashboard-grid" style={{ gridTemplateColumns: '260px 1fr', minHeight: '100vh', gap: '24px', padding: '24px' }}>
         {/* Left Panel: Navigation & Branding */}
@@ -418,23 +369,16 @@ function App() {
 
           {/* Clean Navigation */}
           <nav className="glass-panel nav-panel" style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px', borderRadius: '12px' }}>
-            <button className={activeTab === 'metrics' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('metrics')}>
-              📈 Key Metrics
+            <button className={activeTab === 'onboard' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('onboard')}>
+              📖 Getting Started
             </button>
             <button className={activeTab === 'playground' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('playground')}>
               ⚡ Live Playground
             </button>
-            <button className={activeTab === 'onboard' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('onboard')}>
-              📖 How to Setup
+            <button className={activeTab === 'metrics' ? 'nav-item active' : 'nav-item'} onClick={() => setActiveTab('metrics')}>
+              📈 Key Metrics
             </button>
           </nav>
-
-          {/* Settings in Sidebar */}
-          <div style={{ marginTop: 'auto', padding: '8px' }}>
-            <button className="btn btn-settings" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => setShowSettings(true)}>
-              ⚙️ Settings
-            </button>
-          </div>
         </aside>
 
         {/* Right Panel: Content Area */}
@@ -482,27 +426,6 @@ function App() {
                     No usage recorded in the last 14 days. Start using the proxy to see charts.
                   </div>
                 )}
-              </div>
-
-              {/* API Keys Table */}
-              <div className="glass-panel" style={{ padding: '24px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#f8fafc', margin: '0 0 4px 0' }}>API keys</h3>
-                <p style={{ color: '#64748b', fontSize: '0.85rem', margin: '0 0 20px 0' }}>For the hosted Paritok endpoint. Self-hosting the open model needs no key.</p>
-                
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'rgba(255,255,255,0.01)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.02)' }}>
-                    <div>
-                      <div style={{ fontWeight: 'bold', color: '#f8fafc', fontSize: '0.95rem' }}>gitlean-active-key</div>
-                      <div style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>
-                        {settings.api_key ? (settings.api_key.length > 20 ? settings.api_key.substring(0, 12) + '...' + settings.api_key.substring(settings.api_key.length - 6) : settings.api_key) : 'pk_live_iqkn9k5Csp8IkEYkHim5trSXTGRQnrZb (fallback)'}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.9rem', color: '#94a3b8' }}>{stats.requests} requests</span>
-                      <button className="btn btn-secondary" style={{ padding: '6px 14px', fontSize: '0.85rem', border: '1px solid #10b981', color: '#10b981', background: 'transparent', cursor: 'default' }}>Active</button>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -585,8 +508,15 @@ function App() {
           {/* Tab 3: How to Setup */}
           {activeTab === 'onboard' && (
             <div className="tab-content onboard-tab">
+              <h2>⚡ GitLean: Token-Efficient Git Pull Explainer</h2>
+              <p style={{ color: '#cbd5e1', fontSize: '1.02rem', lineHeight: '1.6', marginBottom: '28px', maxWidth: '800px' }}>
+                GitLean is a developer tool and context compressor designed for teams working together. It acts as a smart local proxy sitting between your IDE agent (like Antigravity or Claude Code) and upstream LLMs. 
+                <br/><br/>
+                When you ask your agent to summarize what was changed in a pull or merge, GitLean intercepts the request, isolates the exact changes (using <code>git diff HEAD@&#123;1&#125; HEAD</code>), and compresses them via Paritok. This reduces prompt tokens, response latency, and API billing costs by <strong>50% to 75%+</strong>.
+              </p>
+
               <h2>📖 Developer Quickstart Guide</h2>
-              <p className="tab-subtitle">Integrate GitLean transparently into your existing IDE agent terminal sessions.</p>
+              <p className="tab-subtitle" style={{ marginBottom: '24px' }}>Integrate GitLean transparently into your existing IDE terminal sessions:</p>
 
               <div className="onboard-step" style={{ marginBottom: '24px' }}>
                 <h3>Step 1: Install the SDK globally</h3>
