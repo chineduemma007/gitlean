@@ -521,15 +521,15 @@ function App() {
                 {/* Path 1: VS Code */}
                 <div className="glass-panel" style={{ padding: '20px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.2)', background: 'rgba(56, 189, 248, 0.02)' }}>
                   <h4 style={{ color: '#38bdf8', margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span>🔌</span> VS Code Extension (Recommended)
+                    <span>🔌</span> VS Code Extension (Preview)
                   </h4>
                   <p style={{ color: '#94a3b8', fontSize: '0.85rem', lineHeight: '1.5', margin: '0 0 16px 0' }}>
-                    Zero-config setup. Automatically bundles the native GitLean binary and runs it silently in the background. No Python required.
+                    Zero-config setup. Since GitLean is in developer preview, the extension is installed locally rather than in the public marketplace.
                   </p>
                   <ol style={{ color: '#cbd5e1', fontSize: '0.8rem', paddingLeft: '16px', margin: 0 }}>
-                    <li style={{ marginBottom: '6px' }}>Open VS Code Extensions marketplace.</li>
-                    <li style={{ marginBottom: '6px' }}>Search for <strong>GitLean</strong> and click <strong>Install</strong>.</li>
-                    <li>Reload VS Code. That's it!</li>
+                    <li style={{ marginBottom: '6px' }}>Copy the <code>vscode-extension</code> folder to <code>%USERPROFILE%\.vscode\extensions\</code>.</li>
+                    <li style={{ marginBottom: '6px' }}>Open VS Code and press <code>Ctrl+Shift+P</code> to run <strong>Developer: Reload Window</strong>.</li>
+                    <li>The proxy daemon runs automatically!</li>
                   </ol>
                 </div>
 
