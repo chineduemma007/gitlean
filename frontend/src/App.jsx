@@ -20,6 +20,7 @@ function App() {
   // Analysis Results State
   const [results, setResults] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [cachedFiles, setCachedFiles] = useState({});
 
   // Diagnostic Results State
   const [diagResults, setDiagResults] = useState(null);
@@ -31,7 +32,28 @@ function App() {
   useEffect(() => {
     fetchSettings();
     fetchHistory();
+    fetchCachedFiles();
+    
+    // Poll for live stats from active IDE sessions
+    const interval = setInterval(() => {
+      fetchHistory();
+      fetchCachedFiles();
+    }, 3000);
+    
+    return () => clearInterval(interval);
   }, []);
+
+  const fetchCachedFiles = async () => {
+    try {
+      const res = await fetch('http://127.0.0.1:8000/api/cached-files');
+      if (res.ok) {
+        const data = await res.json();
+        setCachedFiles(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch cached files:", e);
+    }
+  };
 
   const fetchSettings = async () => {
     try {
@@ -350,51 +372,59 @@ function App() {
               <h2>🔍 Split-Screen Context Visualizer</h2>
               <p className="tab-subtitle">Visualizing original source files vs. the semantic compression sent to the LLM</p>
 
-              {results ? (
+              {(results?.files || Object.keys(cachedFiles).length > 0) ? (
                 <div className="visualizer-container">
                   <div className="file-selector">
-                    {Object.keys(results.files).map((filepath) => (
-                      <button 
-                        key={filepath}
-                        className={selectedFile === filepath ? 'file-item active' : 'file-item'}
-                        onClick={() => setSelectedFile(filepath)}
-                      >
-                        📄 {filepath}
-                        <span className="file-saving">-{results.files[filepath].savings_ratio}%</span>
-                      </button>
-                    ))}
+                    {Object.keys(results?.files || cachedFiles).map((filepath) => {
+                      const fileInfo = results?.files?.[filepath] || cachedFiles[filepath];
+                      return (
+                        <button 
+                          key={filepath}
+                          className={(selectedFile === filepath || (!selectedFile && Object.keys(results?.files || cachedFiles)[0] === filepath)) ? 'file-item active' : 'file-item'}
+                          onClick={() => setSelectedFile(filepath)}
+                        >
+                          📄 {filepath}
+                          <span className="file-saving">-{fileInfo.savings_ratio}%</span>
+                        </button>
+                      );
+                    })}
                   </div>
 
-                  {selectedFile && results.files[selectedFile] && (
-                    <div className="split-view">
-                      <div className="code-column">
-                        <h4>Original Code ({results.files[selectedFile].original_tokens} tokens)</h4>
-                        <pre className="code-display">
-                          <code>{results.files[selectedFile].original_code}</code>
-                        </pre>
+                  {(() => {
+                    const currentFile = selectedFile || Object.keys(results?.files || cachedFiles)[0];
+                    const fileInfo = results?.files?.[currentFile] || cachedFiles[currentFile];
+                    if (!fileInfo) return null;
+                    return (
+                      <div className="split-view">
+                        <div className="code-column">
+                          <h4>Original Code ({fileInfo.original_tokens} tokens)</h4>
+                          <pre className="code-display">
+                            <code>{fileInfo.original_code}</code>
+                          </pre>
+                        </div>
+                        <div className="code-column compressed">
+                          <h4>Paritok Compressed ({fileInfo.compressed_tokens} tokens)</h4>
+                          <pre className="code-display">
+                            <code>
+                              {fileInfo.compressed_code.split('\n').map((line, i) => {
+                                // Visually flag collapsed lines for the viewer
+                                if (line.includes('//') || line.includes('...') || line.includes('omitted')) {
+                                  return <span key={i} className="line-omitted">{line}\n</span>;
+                                }
+                                return line + '\n';
+                              })}
+                            </code>
+                          </pre>
+                        </div>
                       </div>
-                      <div className="code-column compressed">
-                        <h4>Paritok Compressed ({results.files[selectedFile].compressed_tokens} tokens)</h4>
-                        <pre className="code-display">
-                          <code>
-                            {results.files[selectedFile].compressed_code.split('\n').map((line, i) => {
-                              // Visually flag collapsed lines for the viewer
-                              if (line.includes('//') || line.includes('...') || line.includes('omitted')) {
-                                return <span key={i} className="line-omitted">{line}\n</span>;
-                              }
-                              return line + '\n';
-                            })}
-                          </code>
-                        </pre>
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               ) : (
                 <div className="empty-state">
                   <div className="icon">🔍</div>
-                  <h3>No Files Analyzed</h3>
-                  <p>Run a PR review first to see the side-by-side context compression diff.</p>
+                  <h3>No Files Analyzed Yet</h3>
+                  <p>Run a local review in the dashboard, or configure your IDE coding assistant (like Antigravity) to use the GitLean proxy to see compression in real-time!</p>
                 </div>
               )}
             </div>

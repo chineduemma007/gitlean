@@ -1,8 +1,10 @@
 import os
 import json
 import time
+import requests
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
+import re
 
 from .config import settings
 from .git_helper import get_modified_files, get_git_diff, get_file_content, get_demo_files, get_demo_diff
@@ -10,7 +12,7 @@ from .paritok_client import compress_code, test_api_connection
 from .llm_reviewer import get_code_review
 from .diagnostics import run_diagnostics
 
-# Global History state
+# Global history of compressed runs
 HISTORY = [
     {"timestamp": "2026-07-28 14:22", "original_tokens": 12450, "compressed_tokens": 3120, "savings": 74.9, "cost_saved": 0.056},
     {"timestamp": "2026-07-29 09:15", "original_tokens": 8900, "compressed_tokens": 2010, "savings": 77.4, "cost_saved": 0.041},
@@ -18,11 +20,14 @@ HISTORY = [
     {"timestamp": "2026-08-01 16:30", "original_tokens": 18200, "compressed_tokens": 4200, "savings": 76.9, "cost_saved": 0.084},
 ]
 
-class GitLeanRequestHandler(BaseHTTPRequestHandler):
+# Cache of files compressed in the active session for visualizer display
+COMPRESSED_FILES_CACHE = {}
+
+class GitLeanProxyRequestHandler(BaseHTTPRequestHandler):
     def _send_cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, x-api-key, anthropic-version")
 
     def do_OPTIONS(self):
         self.send_response(200)
@@ -54,6 +59,14 @@ class GitLeanRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             
             self.wfile.write(json.dumps(HISTORY).encode("utf-8"))
+
+        elif path == "/api/cached-files":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self._send_cors_headers()
+            self.end_headers()
+            
+            self.wfile.write(json.dumps(COMPRESSED_FILES_CACHE).encode("utf-8"))
             
         else:
             self.send_response(404)
@@ -65,7 +78,7 @@ class GitLeanRequestHandler(BaseHTTPRequestHandler):
         parsed_path = urlparse(self.path)
         path = parsed_path.path
 
-        # Read content length for POST body
+        # Read POST content body
         content_length = int(self.headers.get("Content-Length", 0))
         post_data = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else "{}"
         
@@ -74,6 +87,9 @@ class GitLeanRequestHandler(BaseHTTPRequestHandler):
         except Exception:
             body = {}
 
+        # ----------------------------------------------------
+        # 1. Standard API Settings Endpoints
+        # ----------------------------------------------------
         if path == "/api/settings":
             settings.use_gpu_server = body.get("use_gpu_server", settings.use_gpu_server)
             settings.gpu_api_key = body.get("api_key", settings.gpu_api_key)
@@ -102,6 +118,7 @@ class GitLeanRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(res_data).encode("utf-8"))
 
         elif path == "/api/analyze":
+            # Run local manual PR review
             start_time = time.time()
             demo_mode = body.get("demo_mode", True)
             repo_path = body.get("repo_path", "")
@@ -140,19 +157,12 @@ class GitLeanRequestHandler(BaseHTTPRequestHandler):
                 files_dict = {str(f.relative_to(path_to_scan) if hasattr(f, "relative_to") else f): get_file_content(f) for f in modified}
                 git_diff = get_git_diff(path_to_scan)
 
-            # Compress files
             compressed_files = {}
             total_original_tokens = 0
             total_compressed_tokens = 0
 
             for filepath, content in files_dict.items():
-                comp_res = compress_code(
-                    content=content, 
-                    query=git_diff, 
-                    level=compression_level,
-                    kind="code"
-                )
-                
+                comp_res = compress_code(content, query=git_diff, level=compression_level)
                 compressed_files[filepath] = {
                     "original_code": content,
                     "compressed_code": comp_res["compressed"],
@@ -161,19 +171,15 @@ class GitLeanRequestHandler(BaseHTTPRequestHandler):
                     "savings_ratio": comp_res["savings_ratio"],
                     "gpu_used": comp_res["gpu_used"]
                 }
-                
                 total_original_tokens += comp_res["original_tokens"]
                 total_compressed_tokens += comp_res["compressed_tokens"]
 
-            savings_ratio = 0.0
-            if total_original_tokens > 0:
-                savings_ratio = round((1 - (total_compressed_tokens / total_original_tokens)) * 100, 2)
-                
-            input_token_price = 0.000003
-            tokens_saved = max(0, total_original_tokens - total_compressed_tokens)
-            cost_saved = round(tokens_saved * input_token_price, 4)
+                # Cache in global state for visualizer
+                COMPRESSED_FILES_CACHE[filepath] = compressed_files[filepath]
 
-            # Upstream review
+            savings_ratio = round((1 - (total_compressed_tokens / total_original_tokens)) * 100, 2) if total_original_tokens > 0 else 0
+            cost_saved = round((total_original_tokens - total_compressed_tokens) * 0.000003, 4)
+
             review_report = get_code_review(git_diff, compressed_files, use_mock=demo_mode)
             duration = round(time.time() - start_time, 2)
 
@@ -185,8 +191,6 @@ class GitLeanRequestHandler(BaseHTTPRequestHandler):
                 "cost_saved": cost_saved
             }
             HISTORY.append(new_run)
-            
-            # Update social logs
             _update_social_media_logs(total_original_tokens, total_compressed_tokens, savings_ratio, cost_saved)
 
             self.send_response(200)
@@ -209,11 +213,8 @@ class GitLeanRequestHandler(BaseHTTPRequestHandler):
 
         elif path == "/api/diagnose":
             diag_res = run_diagnostics()
-            
-            # Write directly to feedback.md
             try:
-                workspace_dir = settings.BASE_DIR
-                feedback_path = workspace_dir / "feedback.md"
+                feedback_path = settings.BASE_DIR / "feedback.md"
                 with open(feedback_path, "w", encoding="utf-8") as f:
                     f.write(diag_res["report"])
                 diag_res["feedback_updated"] = True
@@ -226,6 +227,118 @@ class GitLeanRequestHandler(BaseHTTPRequestHandler):
             self._send_cors_headers()
             self.end_headers()
             self.wfile.write(json.dumps(diag_res).encode("utf-8"))
+
+        # ----------------------------------------------------
+        # 2. Transparent IDE Proxy Layer (Anthropic / Claude Code)
+        # ----------------------------------------------------
+        elif path == "/v1/messages" or path == "/messages":
+            print(f"\n[GitLean Proxy] Intercepting request to Anthropic upstream...")
+            
+            # Forward headers sent by Antigravity / Claude Code
+            upstream_headers = {
+                "x-api-key": self.headers.get("x-api-key", settings.upstream_api_key),
+                "anthropic-version": self.headers.get("anthropic-version", "2023-06-01"),
+                "content-type": "application/json"
+            }
+            
+            # Extract and compress files embedded in messages
+            messages = body.get("messages", [])
+            modified_messages = []
+            
+            total_orig_tokens = 0
+            total_comp_tokens = 0
+            
+            for msg in messages:
+                content = msg.get("content", "")
+                role = msg.get("role", "")
+                
+                # Check for large context blocks containing file reads (markdown code blocks)
+                # Pattern: matches file paths followed by standard ``` block
+                if role == "user" and isinstance(content, str) and "```" in content:
+                    print(" - Scanning message for codebase files...")
+                    # Regex to find markdown code fences and compress them
+                    code_blocks = re.findall(r"(?:File:\s*([^\n`]+)\n)?```[a-zA-Z]*\n([\s\S]*?)```", content)
+                    
+                    new_content = content
+                    for filepath, code_content in code_blocks:
+                        filepath = filepath.strip() if filepath else "unnamed_source"
+                        if len(code_content) > 200: # Only compress files containing substantial text
+                            print(f"   * Found code block: {filepath} ({len(code_content)} chars)")
+                            
+                            comp_res = compress_code(code_content, query="optimize code context", level="medium")
+                            compressed_code = comp_res["compressed"]
+                            
+                            # Replace in the prompt message content
+                            original_fence = f"```\n{code_content}```"
+                            replacement_fence = f"```\n{compressed_code}```"
+                            
+                            # Try with file path headers too
+                            if f"File: {filepath}" in content:
+                                original_fence = f"File: {filepath}\n```"
+                                
+                            new_content = new_content.replace(code_content, compressed_code)
+                            
+                            # Cache file metadata for dashboard visualizer
+                            file_data = {
+                                "original_code": code_content,
+                                "compressed_code": compressed_code,
+                                "original_tokens": comp_res["original_tokens"],
+                                "compressed_tokens": comp_res["compressed_tokens"],
+                                "savings_ratio": comp_res["savings_ratio"],
+                                "gpu_used": comp_res["gpu_used"]
+                            }
+                            COMPRESSED_FILES_CACHE[filepath] = file_data
+                            
+                            total_orig_tokens += comp_res["original_tokens"]
+                            total_comp_tokens += comp_res["compressed_tokens"]
+                    
+                    modified_messages.append({"role": role, "content": new_content})
+                else:
+                    modified_messages.append(msg)
+                    
+            # Update body messages
+            body["messages"] = modified_messages
+            
+            # Record saving metrics in history if compression took place
+            if total_orig_tokens > 0:
+                savings_ratio = round((1 - (total_comp_tokens / total_orig_tokens)) * 100, 2)
+                cost_saved = round((total_orig_tokens - total_comp_tokens) * 0.000003, 4)
+                
+                print(f"[GitLean Proxy] Compressed prompts: {total_orig_tokens} -> {total_comp_tokens} tokens (-{savings_ratio}%)")
+                
+                new_run = {
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M"),
+                    "original_tokens": total_orig_tokens,
+                    "compressed_tokens": total_comp_tokens,
+                    "savings": savings_ratio,
+                    "cost_saved": cost_saved
+                }
+                HISTORY.append(new_run)
+                _update_social_media_logs(total_orig_tokens, total_comp_tokens, savings_ratio, cost_saved)
+            
+            # Forward the request to Anthropic API
+            upstream_url = "https://api.anthropic.com/v1/messages"
+            print(f"[GitLean Proxy] Forwarding request to Anthropic upstream: {upstream_url}...")
+            
+            try:
+                response = requests.post(upstream_url, json=body, headers=upstream_headers, timeout=60)
+                
+                # Forward response back to the client
+                self.send_response(response.status_code)
+                for k, v in response.headers.items():
+                    # Strip standard chunk transfer headers to avoid chunking mismatches
+                    if k.lower() not in ["transfer-encoding", "content-encoding", "content-length"]:
+                        self.send_header(k, v)
+                self._send_cors_headers()
+                self.end_headers()
+                self.wfile.write(response.content)
+                print(f"[GitLean Proxy] Successfully forwarded response. (Status: {response.status_code})")
+            except Exception as e:
+                print(f"[GitLean Proxy] Connection failed: {e}")
+                self.send_response(502)
+                self._send_cors_headers()
+                self.end_headers()
+                self.wfile.write(f"Proxy Connection Error: {e}".encode("utf-8"))
             
         else:
             self.send_response(404)
@@ -270,12 +383,12 @@ def _update_social_media_logs(original: int, compressed: int, savings: float, co
 
 def run_server(port=8000):
     server_address = ("", port)
-    httpd = HTTPServer(server_address, GitLeanRequestHandler)
-    print(f"GitLean standard library HTTP server running on port {port}...")
+    httpd = HTTPServer(server_address, GitLeanProxyRequestHandler)
+    print(f"GitLean standard library HTTP proxy server running on port {port}...")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\nStopping server...")
+        print("\nStopping proxy server...")
         httpd.server_close()
 
 if __name__ == "__main__":
